@@ -13,7 +13,8 @@ namespace TabletDriverFilters
         private DateTime? _lastFilterTime;
         private Point _lastPos;
         private float _timerInterval;
-        public float _threshold = 0.63f;
+        private const float _threshold = 0.63f;
+
         public Point Filter(Point point)
         {
             var timeDelta = DateTime.Now - _lastFilterTime;
