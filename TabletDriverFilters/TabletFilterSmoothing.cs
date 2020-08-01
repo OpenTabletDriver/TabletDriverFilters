@@ -12,29 +12,30 @@ namespace TabletDriverFilters
     {
         private DateTime? _lastFilterTime;
         private Point _lastPos;
-
+        private float _timerInterval;
+        public float _threshold = 0.63f;
         public Point Filter(Point point)
         {
             var timeDelta = DateTime.Now - _lastFilterTime;
             // If a time difference hasn't been established or it has been 100 milliseconds since the last filter
-            if (timeDelta == null || timeDelta.Value.TotalMilliseconds > 100)
+            if (timeDelta == null || timeDelta.Value.TotalMilliseconds > 100 || _lastPos == null)
             {
                 SetPreviousState(point);
                 return point;
             }
             else
             {
-                Point pos = new Point(point.X, point.Y);
+                Point pos = new Point(_lastPos.X, _lastPos.Y);
                 float deltaX = point.X - _lastPos.X;
                 float deltaY = point.Y - _lastPos.Y;
 
-                float stepCount = Latency / TimerInterval;
-                float target = 1 - Threshold;
-                float weight = 1f - (1f / (float)Pow(1 / target, 1 / stepCount));
+                double stepCount = Latency / TimerInterval;
+                double target = 1 - _threshold;
+                double weight = 1.0 - (1.0 / Pow(1.0 / target, 1.0 / stepCount));
 
-                pos.X += deltaX * weight;
-                pos.Y += deltaY * weight;
-                SetPreviousState(point);
+                pos.X += (float)(deltaX * weight);
+                pos.Y += (float)(deltaY * weight);
+                SetPreviousState(pos);
                 return pos;
             }
         }
@@ -45,18 +46,16 @@ namespace TabletDriverFilters
             _lastFilterTime = DateTime.Now;
         }
 
-        public FilterStage FilterStage => FilterStage.PreTranspose;
+        public FilterStage FilterStage => FilterStage.PostTranspose;
 
         [SliderProperty("Latency", 0f, 5f, 2f)]
         public float Latency { set; get; }
 
-        [SliderProperty("Weight", 0f, 1f, 1f)]
-        public float Weight { set; get; }
-
-        [SliderProperty("Threshold", 0f, 1f, 0.9f)]
-        public float Threshold { set; get; }
-
         [UnitProperty("Timer Interval", "hz")]
-        public float TimerInterval { set; get; }
+        public float TimerInterval
+        {
+            set => _timerInterval = 1000f / value;
+            get => _timerInterval;
+        }
     }
 }
