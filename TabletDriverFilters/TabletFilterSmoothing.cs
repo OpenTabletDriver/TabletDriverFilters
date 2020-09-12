@@ -1,7 +1,7 @@
 ﻿using System;
-using TabletDriverPlugin;
-using TabletDriverPlugin.Attributes;
-using TabletDriverPlugin.Tablet;
+using System.Numerics;
+using OpenTabletDriver.Plugin.Attributes;
+using OpenTabletDriver.Plugin.Tablet;
 
 namespace TabletDriverFilters
 {
@@ -11,11 +11,11 @@ namespace TabletDriverFilters
     public class TabletFilterSmoothing : IFilter
     {
         private DateTime? _lastFilterTime;
-        private Point _lastPos;
+        private Vector2 _lastPos;
         private float _timerInterval;
         private const float _threshold = 0.63f;
 
-        public Point Filter(Point point)
+        public Vector2 Filter(Vector2 point)
         {
             var timeDelta = DateTime.Now - _lastFilterTime;
             // If a time difference hasn't been established or it has been 100 milliseconds since the last filter
@@ -26,7 +26,7 @@ namespace TabletDriverFilters
             }
             else
             {
-                Point pos = new Point(_lastPos.X, _lastPos.Y);
+                Vector2 pos = new Vector2(_lastPos.X, _lastPos.Y);
                 float deltaX = point.X - _lastPos.X;
                 float deltaY = point.Y - _lastPos.Y;
 
@@ -41,7 +41,7 @@ namespace TabletDriverFilters
             }
         }
 
-        private void SetPreviousState(Point lastPosition)
+        private void SetPreviousState(Vector2 lastPosition)
         {
             _lastPos = lastPosition;
             _lastFilterTime = DateTime.Now;
