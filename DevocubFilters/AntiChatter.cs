@@ -1,23 +1,23 @@
 using System;
-using TabletDriverPlugin;
-using TabletDriverPlugin.Attributes;
-using TabletDriverPlugin.Tablet;
+using System.Numerics;
+using OpenTabletDriver.Plugin.Attributes;
+using OpenTabletDriver.Plugin.Tablet;
 
-namespace TabletDriverFilters
+namespace TabletDriverFilters.Devocub
 {
     using static Math;
 
-    [PluginName("TabletDriver AntiChatterFilter")]
-    public class TabletFilterAntiChatter : IFilter
+    [PluginName("TabletDriver AntiChatter Filter")]
+    public class AntiChatter : IFilter
     {
-        private Point _lastPos;
+        private Vector2 _lastPos;
         private float _timerInterval;
         private const float _threshold = 0.63f;
         private float _latency;
 
-        public Point Filter(Point point)
+        public Vector2 Filter(Vector2 point)
         {
-            Point calcTarget = new Point();
+            Vector2 calcTarget = new Vector2();
             double deltaX, deltaY, distance, weightModifier, predictionModifier;
 
             if (_lastPos == null)
@@ -80,7 +80,7 @@ namespace TabletDriverFilters
             _lastPos.Y += (float)(deltaY * weightModifier);
 
             // OTDPlugin 0.3.2 feature
-            // TabletDriverPlugin.Log.Write("Antichatter", $"orig: ({point}) new: ({_lastPos}) dist: ({point.DistanceFrom(_lastPos)})", LogLevel.Debug);
+            // OpenTabletDriver.Plugin.Log.Write("Antichatter", $"orig: ({point}) new: ({_lastPos}) dist: ({point.DistanceFrom(_lastPos)})", LogLevel.Debug);
             return _lastPos;
         }
 
