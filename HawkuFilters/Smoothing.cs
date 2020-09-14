@@ -3,12 +3,12 @@ using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Tablet;
 
-namespace TabletDriverFilters
+namespace TabletDriverFilters.Hawku
 {
     using static Math;
 
     [PluginName("TabletDriver Smoothing Filter")]
-    public class TabletFilterSmoothing : IFilter
+    public class Smoothing : IFilter
     {
         private DateTime? _lastFilterTime;
         private Vector2 _lastPos;
