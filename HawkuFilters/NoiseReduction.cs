@@ -1,20 +1,21 @@
 using System;
 using System.Collections.Generic;
-using TabletDriverPlugin.Attributes;
-using TabletDriverPlugin.Tablet;
+using System.Numerics;
+using OpenTabletDriver.Plugin.Attributes;
+using OpenTabletDriver.Plugin.Tablet;
 
-namespace TabletDriverPlugin
+namespace OpenTabletDriver.Plugin
 {
     [PluginName("TabletDriver Noise Reduction")]
     public class TabletDriverNoiseReduction : IFilter
     {
-        private LinkedList<Point> _buffer = new LinkedList<Point>();
+        private LinkedList<Vector2> _buffer = new LinkedList<Vector2>();
         private float _distThreshold, _distMax;
         private const int _iterations = 10;
         private int _samples = 10;
-        private Point _lastPoint;
+        private Vector2 _lastPoint;
 
-        public Point Filter(Point point)
+        public Vector2 Filter(Vector2 point)
         {
             SetTarget(point);
 
@@ -27,7 +28,7 @@ namespace TabletDriverPlugin
             GetGeometricMedianVector(ref _lastPoint);
 
             // Distance between latest position and ring buffer
-            var distance = point.DistanceFrom(_lastPoint);
+            var distance = Vector2.Distance(point, _lastPoint);
 
             // Distance larger than threshold -> modify the ring buffer
             if (distance > DistThreshold)
@@ -53,13 +54,24 @@ namespace TabletDriverPlugin
                 {
                     // Move buffer positions and current position towards the latest target using linear interpolation
                     // Amount of movement is the distance ratio between threshold and maximum
-                    var bufEnum = _buffer.GetEnumerator();
+                    // var bufEnum = _buffer.GetEnumerator();
 
                     // buffer.LerpAdd()
-                    while (bufEnum.MoveNext())
+                    // while (bufEnum.MoveNext())
+                    // {
+                    //     bufEnum.Current.X += (float)((point.X - bufEnum.Current.X) * distanceRatio);
+                    //     bufEnum.Current.Y += (float)((point.Y - bufEnum.Current.Y) * distanceRatio);
+                    // }
+
+                    var bufNode = _buffer.First;
+
+                    while (bufNode != null)
                     {
-                        bufEnum.Current.X += (float)((point.X - bufEnum.Current.X) * distanceRatio);
-                        bufEnum.Current.Y += (float)((point.Y - bufEnum.Current.Y) * distanceRatio);
+                        var bufPoint = bufNode.Value;
+                        bufPoint.X = (float)((point.X - bufPoint.X) * distanceRatio);
+                        bufPoint.Y = (float)((point.Y - bufPoint.Y) * distanceRatio);
+                        bufNode.Value = bufPoint;
+                        bufNode = bufNode.Next;
                     }
 
                     // outputPosition.LerpAdd()
@@ -74,23 +86,23 @@ namespace TabletDriverPlugin
             return SetOutput(point);
         }
 
-        private void SetTarget(Point point)
+        private void SetTarget(Vector2 point)
         {
             _buffer.AddLast(point);
             while (_buffer.Count > Samples)
                 _buffer.RemoveFirst();
         }
 
-        private Point SetOutput(Point point)
+        private Vector2 SetOutput(Vector2 point)
         {
             _lastPoint = point;
             return point;
         }
 
-        private Point GetGeometricMedianVector(ref Point point)
+        private Vector2 GetGeometricMedianVector(ref Vector2 point)
         {
-            var candidate = new Point();
-            var next = new Point();
+            var candidate = new Vector2();
+            var next = new Vector2();
             var minimumDistance = 0.001;
 
             double denominator, weight, distance;
@@ -107,7 +119,7 @@ namespace TabletDriverPlugin
                 // Loop through the buffer and calculate a denominator.
                 foreach (var bufferPoint in _buffer)
                 {
-                    distance = candidate.DistanceFrom(bufferPoint);
+                    distance = Vector2.Distance(candidate, bufferPoint);
 
                     if (distance > minimumDistance)
                         denominator += 1.0 / distance;
@@ -122,7 +134,7 @@ namespace TabletDriverPlugin
                 // Loop through the buffer and calculate a weighted average
                 foreach (var bufferPoint in _buffer)
                 {
-                    distance = candidate.DistanceFrom(bufferPoint);
+                    distance = Vector2.Distance(candidate, bufferPoint);
 
                     if (distance > minimumDistance)
                         weight = 1.0 / distance;
@@ -144,7 +156,7 @@ namespace TabletDriverPlugin
             return point;
         }
 
-        private bool GetAverageVector(ref Point point)
+        private bool GetAverageVector(ref Vector2 point)
         {
             if (_buffer.Count == 0)
                 return false;
