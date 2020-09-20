@@ -54,32 +54,21 @@ namespace OpenTabletDriver.Plugin
                 {
                     // Move buffer positions and current position towards the latest target using linear interpolation
                     // Amount of movement is the distance ratio between threshold and maximum
-                    // var bufEnum = _buffer.GetEnumerator();
-
-                    // buffer.LerpAdd()
-                    // while (bufEnum.MoveNext())
-                    // {
-                    //     bufEnum.Current.X += (float)((point.X - bufEnum.Current.X) * distanceRatio);
-                    //     bufEnum.Current.Y += (float)((point.Y - bufEnum.Current.Y) * distanceRatio);
-                    // }
 
                     var bufNode = _buffer.First;
 
                     while (bufNode != null)
                     {
                         var bufPoint = bufNode.Value;
-                        bufPoint.X = (float)((point.X - bufPoint.X) * distanceRatio);
-                        bufPoint.Y = (float)((point.Y - bufPoint.Y) * distanceRatio);
+                        bufPoint.X += (float)((point.X - bufPoint.X) * distanceRatio);
+                        bufPoint.Y += (float)((point.Y - bufPoint.Y) * distanceRatio);
                         bufNode.Value = bufPoint;
                         bufNode = bufNode.Next;
                     }
 
-                    // outputPosition.LerpAdd()
                     _lastPoint.X += (float)((point.X - _lastPoint.X) * distanceRatio);
                     _lastPoint.Y += (float)((point.Y - _lastPoint.Y) * distanceRatio);
 
-                    // New logging feature available only in TDPlugin 0.3.2
-                    // Log.Write("NoiseReduction", "Noise Reduced! " + _lastPoint, LogLevel.Debug);
                     return _lastPoint;
                 }
             }
