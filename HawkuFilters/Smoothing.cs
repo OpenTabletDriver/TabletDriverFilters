@@ -52,7 +52,7 @@ namespace TabletDriverFilters.Hawku
         [SliderProperty("Latency", 0f, 5f, 2f)]
         public float Latency { set; get; }
 
-        [UnitProperty("Timer Interval", "hz")]
+        [Property("Timer Interval"), Unit("hz")]
         public float TimerInterval
         {
             set => _timerInterval = 1000f / value;
