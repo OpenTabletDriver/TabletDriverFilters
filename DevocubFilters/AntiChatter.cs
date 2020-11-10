@@ -5,20 +5,20 @@ using OpenTabletDriver.Plugin.Tablet;
 
 namespace TabletDriverFilters.Devocub
 {
-    using static Math;
+    using static MathF;
 
     [PluginName("TabletDriver AntiChatter Filter")]
     public class AntiChatter : IFilter
     {
         private Vector2 _lastPos;
         private float _timerInterval;
-        private const float _threshold = 0.63f;
-        private float _latency;
+        private const float _threshold = 0.9f;
+        private float _latency = 2.0f;
 
         public Vector2 Filter(Vector2 point)
         {
             Vector2 calcTarget = new Vector2();
-            double deltaX, deltaY, distance, weightModifier, predictionModifier;
+            float deltaX, deltaY, distance, weightModifier, predictionModifier;
 
             if (_lastPos == null)
             {
@@ -60,9 +60,9 @@ namespace TabletDriverFilters.Devocub
             deltaY = calcTarget.Y - _lastPos.Y;
             distance = Sqrt(deltaX * deltaX + deltaY * deltaY);
 
-            double stepCount = Latency / TimerInterval;
-            double target = 1 - _threshold;
-            double weight = 1.0 - (1.0 / Pow(1.0 / target, 1.0 / stepCount));
+            float stepCount = Latency / TimerInterval;
+            float target = 1 - _threshold;
+            float weight = (float)(1.0 - (1.0 / Pow((float)(1.0 / target), (float)(1.0 / stepCount))));
 
             // Devocub smoothing
             // Increase weight of filter in {formula} times
@@ -75,12 +75,10 @@ namespace TabletDriverFilters.Devocub
                 weightModifier += AntichatterOffsetY;
 
             weightModifier = weight / weightModifier;
-            weightModifier = Clamp(weightModifier, 0, 1);
+            weightModifier = Math.Clamp(weightModifier, 0, 1);
             _lastPos.X += (float)(deltaX * weightModifier);
             _lastPos.Y += (float)(deltaY * weightModifier);
 
-            // OTDPlugin 0.3.2 feature
-            // OpenTabletDriver.Plugin.Log.Write("Antichatter", $"orig: ({point}) new: ({_lastPos}) dist: ({point.DistanceFrom(_lastPos)})", LogLevel.Debug);
             return _lastPos;
         }
 
@@ -89,11 +87,11 @@ namespace TabletDriverFilters.Devocub
         [SliderProperty("Latency", 0f, 5f, 2f)]
         public float Latency
         {
-            set => _latency = Clamp(value, 0, 1000);
+            set => _latency = Math.Clamp(value, 0, 1000);
             get => _latency;
         }
 
-        [UnitProperty("Timer Interval", "hz")]
+        [Property("Timer Interval"), Unit("hz")]
         public float TimerInterval
         {
             set => _timerInterval = 1000f / value;
@@ -110,7 +108,7 @@ namespace TabletDriverFilters.Devocub
         public float AntichatterOffsetX { set; get; }
 
         [Property("Antichatter Offset Y")]
-        public float AntichatterOffsetY { set; get; }
+        public float AntichatterOffsetY { set; get; } = 1;
 
         [BooleanProperty("Prediction", "")]
         public bool PredictionEnabled { set; get; }
