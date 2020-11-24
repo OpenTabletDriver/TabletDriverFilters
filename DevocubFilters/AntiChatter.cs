@@ -87,7 +87,7 @@ namespace TabletDriverFilters.Devocub
 
         public static FilterStage FilterStage => FilterStage.PostTranspose;
 
-        [SliderProperty("Latency", 0f, 5f, 2f)]
+        [SliderProperty("Latency", 0f, 1000f, 2f)]
         public float Latency
         {
             set => this.latency = Math.Clamp(value, 0, 1000);
