@@ -1,0 +1,38 @@
+name: .NET Core
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - Filters: "HawkuFilters"
+          - Filters: "DevocubFilters"
+
+    steps:
+    - uses: actions/checkout@v2
+      with: 
+        submodules: true
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.100
+
+    - name: Filters Build
+      env:
+          framework: net5
+      run: dotnet build ${{ matrix.Filters }}/${{ matrix.Filters }}.csproj -f $framework -o ./build
+
+    - name: Upload Filters artifact
+      uses: actions/upload-artifact@master
+      with:
+        name: ${{ matrix.Filters }}
+        path: build/${{ matrix.Filters }}.dll
