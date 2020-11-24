@@ -2,61 +2,70 @@
 using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Tablet;
+using OpenTabletDriver.Plugin.Tablet.Interpolator;
+using OpenTabletDriver.Plugin.Timers;
 
 namespace TabletDriverFilters.Hawku
 {
     using static Math;
 
     [PluginName("TabletDriver Smoothing Filter")]
-    public class Smoothing : IFilter
+    public class Smoothing : Interpolator
     {
-        private DateTime? _lastFilterTime;
-        private Vector2 _lastPos;
-        private float _timerInterval;
-        private const float _threshold = 0.63f;
+        public Smoothing(ITimer scheduler) : base(scheduler) {  }
 
-        public Vector2 Filter(Vector2 point)
+        private DateTime? lastFilterTime;
+        private Vector3 targetPos;
+        private Vector3 lastPos;
+        private SyntheticTabletReport report;
+        private const float threshold = 0.63f;
+
+        public override void UpdateState(SyntheticTabletReport report)
         {
-            var timeDelta = DateTime.Now - _lastFilterTime;
+            this.targetPos = new Vector3(report.Position, report.Pressure);
+            this.report = report;
+        }
+
+        public override SyntheticTabletReport Interpolate()
+        {
+            var newPoint = Filter(this.targetPos);
+            report.Position = new Vector2(newPoint.X, newPoint.Y);
+            report.Pressure = (uint)newPoint.Z;
+            return report;
+        }
+
+        public Vector3 Filter(Vector3 point)
+        {
+            var timeDelta = DateTime.Now - this.lastFilterTime;
             // If a time difference hasn't been established or it has been 100 milliseconds since the last filter
-            if (timeDelta == null || timeDelta.Value.TotalMilliseconds > 100 || _lastPos == null)
+            if (timeDelta == null || timeDelta.Value.TotalMilliseconds > 100)
             {
-                SetPreviousState(point);
+                this.lastPos = point;
+                this.lastFilterTime = DateTime.Now;
                 return point;
             }
             else
             {
-                Vector2 pos = new Vector2(_lastPos.X, _lastPos.Y);
-                float deltaX = point.X - _lastPos.X;
-                float deltaY = point.Y - _lastPos.Y;
+                Vector3 delta = point - this.lastPos;
 
                 double stepCount = Latency / TimerInterval;
-                double target = 1 - _threshold;
+                double target = 1 - threshold;
                 double weight = 1.0 - (1.0 / Pow(1.0 / target, 1.0 / stepCount));
 
-                pos.X += (float)(deltaX * weight);
-                pos.Y += (float)(deltaY * weight);
-                SetPreviousState(pos);
-                return pos;
+                this.lastPos += delta * (float)weight;
+                this.lastFilterTime = DateTime.Now;
+                return this.lastPos;
             }
         }
 
-        private void SetPreviousState(Vector2 lastPosition)
-        {
-            _lastPos = lastPosition;
-            _lastFilterTime = DateTime.Now;
-        }
-
-        public FilterStage FilterStage => FilterStage.PostTranspose;
+        public static FilterStage FilterStage => FilterStage.PostTranspose;
 
         [SliderProperty("Latency", 0f, 5f, 2f)]
         public float Latency { set; get; }
 
-        [Property("Timer Interval"), Unit("hz")]
         public float TimerInterval
         {
-            set => _timerInterval = 1000f / value;
-            get => _timerInterval;
+            get => 1000 / Hertz;
         }
     }
 }

@@ -2,66 +2,70 @@ using System;
 using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Tablet;
+using OpenTabletDriver.Plugin.Tablet.Interpolator;
+using OpenTabletDriver.Plugin.Timers;
 
 namespace TabletDriverFilters.Devocub
 {
     using static MathF;
 
     [PluginName("TabletDriver AntiChatter Filter")]
-    public class AntiChatter : IFilter
+    public class AntiChatter : Interpolator
     {
-        private Vector2 _lastPos;
-        private float _timerInterval;
-        private const float _threshold = 0.9f;
-        private float _latency = 2.0f;
+        public AntiChatter(ITimer scheduler) : base(scheduler) {  }
+
+        private Vector2 lastPos;
+        private Vector2 targetPos;
+        private SyntheticTabletReport report;
+        private const float threshold = 0.9f;
+        private float latency = 2.0f;
+
+        public override void UpdateState(SyntheticTabletReport report)
+        {
+            this.targetPos = report.Position;
+            this.report = report;
+        }
+
+        public override SyntheticTabletReport Interpolate()
+        {
+            this.report.Position = Filter(this.targetPos);
+            return this.report;
+        }
 
         public Vector2 Filter(Vector2 point)
         {
             Vector2 calcTarget = new Vector2();
-            float deltaX, deltaY, distance, weightModifier, predictionModifier;
-
-            if (_lastPos == null)
-            {
-                _lastPos = point;
-                return point;
-            }
+            Vector2 delta;
+            float distance, weightModifier, predictionModifier;
 
             if (PredictionEnabled)
             {
                 // Calculate predicted position onNewPacket
-                if (_lastPos.X != point.X || _lastPos.Y != point.Y)
+                if (this.lastPos.X != point.X || this.lastPos.Y != point.Y)
                 {
                     // Calculate distance between last 2 packets and prediction
-                    deltaX = point.X - _lastPos.X;
-                    deltaY = point.Y - _lastPos.Y;
-                    distance = Sqrt(deltaX * deltaX + deltaY * deltaY);
+                    delta = point - lastPos;
+                    distance = Vector2.Distance(lastPos, point);
                     predictionModifier = 1 / Cosh((distance - PredictionOffsetX) * PredictionSharpness) * PredictionStrength + PredictionOffsetY;
 
                     // Apply prediction
-                    deltaX *= predictionModifier;
-                    deltaY *= predictionModifier;
+                    delta *= predictionModifier;
 
                     // Update predicted position
-                    calcTarget.X = (float)(point.X + deltaX);
-                    calcTarget.Y = (float)(point.Y + deltaY);
+                    calcTarget = point + delta;
 
                     // Update old position for further prediction
-                    _lastPos.X = point.X;
-                    _lastPos.Y = point.Y;
+                    this.lastPos = point;
                 }
             }
             else
-            {
-                calcTarget.X = point.X;
-                calcTarget.Y = point.Y;
-            }
+                calcTarget = point;
 
-            deltaX = calcTarget.X - _lastPos.X;
-            deltaY = calcTarget.Y - _lastPos.Y;
-            distance = Sqrt(deltaX * deltaX + deltaY * deltaY);
+            delta = calcTarget - lastPos;
+            distance = Vector2.Distance(lastPos, calcTarget);
 
             float stepCount = Latency / TimerInterval;
-            float target = 1 - _threshold;
+            float target = 1 - threshold;
             float weight = (float)(1.0 - (1.0 / Pow((float)(1.0 / target), (float)(1.0 / stepCount))));
 
             // Devocub smoothing
@@ -76,26 +80,23 @@ namespace TabletDriverFilters.Devocub
 
             weightModifier = weight / weightModifier;
             weightModifier = Math.Clamp(weightModifier, 0, 1);
-            _lastPos.X += (float)(deltaX * weightModifier);
-            _lastPos.Y += (float)(deltaY * weightModifier);
+            this.lastPos += delta * weightModifier;
 
-            return _lastPos;
+            return lastPos;
         }
 
-        public FilterStage FilterStage => FilterStage.PostTranspose;
+        public static FilterStage FilterStage => FilterStage.PostTranspose;
 
         [SliderProperty("Latency", 0f, 5f, 2f)]
         public float Latency
         {
-            set => _latency = Math.Clamp(value, 0, 1000);
-            get => _latency;
+            set => this.latency = Math.Clamp(value, 0, 1000);
+            get => this.latency;
         }
 
-        [Property("Timer Interval"), Unit("hz")]
         public float TimerInterval
         {
-            set => _timerInterval = 1000f / value;
-            get => _timerInterval;
+            get => 1000 / Hertz;
         }
 
         [Property("Antichatter Strength")]
