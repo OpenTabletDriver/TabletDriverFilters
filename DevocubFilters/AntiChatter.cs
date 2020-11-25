@@ -14,8 +14,9 @@ namespace TabletDriverFilters.Devocub
     {
         public AntiChatter(ITimer scheduler) : base(scheduler) {  }
 
-        private Vector2 lastPos;
-        private Vector2 targetPos;
+        private bool isReady;
+        private Vector2 position;
+        private Vector2 prevTargetPos, targetPos, calcTarget;
         private SyntheticTabletReport report;
         private const float threshold = 0.9f;
         private float latency = 2.0f;
@@ -23,46 +24,50 @@ namespace TabletDriverFilters.Devocub
         public override void UpdateState(SyntheticTabletReport report)
         {
             this.targetPos = report.Position;
-            this.report = report;
-        }
-
-        public override SyntheticTabletReport Interpolate()
-        {
-            this.report.Position = Filter(this.targetPos);
-            return this.report;
-        }
-
-        public Vector2 Filter(Vector2 point)
-        {
-            Vector2 calcTarget = new Vector2();
-            Vector2 delta;
-            float distance, weightModifier, predictionModifier;
 
             if (PredictionEnabled)
             {
                 // Calculate predicted position onNewPacket
-                if (this.lastPos.X != point.X || this.lastPos.Y != point.Y)
+                if (this.prevTargetPos.X != this.targetPos.X || this.prevTargetPos.Y != this.targetPos.Y)
                 {
                     // Calculate distance between last 2 packets and prediction
-                    delta = point - lastPos;
-                    distance = Vector2.Distance(lastPos, point);
-                    predictionModifier = 1 / Cosh((distance - PredictionOffsetX) * PredictionSharpness) * PredictionStrength + PredictionOffsetY;
+                    var delta = this.targetPos - this.prevTargetPos;
+                    var distance = Vector2.Distance(this.prevTargetPos, this.targetPos);
+                    var predictionModifier = 1 / Cosh((distance - PredictionOffsetX) * PredictionSharpness) * PredictionStrength + PredictionOffsetY;
 
                     // Apply prediction
                     delta *= predictionModifier;
 
                     // Update predicted position
-                    calcTarget = point + delta;
+                    this.calcTarget = this.targetPos + delta;
 
                     // Update old position for further prediction
-                    this.lastPos = point;
+                    this.prevTargetPos = this.targetPos;
                 }
             }
             else
-                calcTarget = point;
+                calcTarget = targetPos;
 
-            delta = calcTarget - lastPos;
-            distance = Vector2.Distance(lastPos, calcTarget);
+            this.report = report;
+        }
+
+        public override SyntheticTabletReport Interpolate()
+        {
+            this.report.Position = Filter(this.calcTarget);
+            return this.report;
+        }
+
+        public Vector2 Filter(Vector2 calcTarget)
+        {
+            if (!this.isReady)
+            {
+                this.position = calcTarget;
+                this.isReady = true;
+                return calcTarget;
+            }
+
+            var delta = calcTarget - this.position;
+            var distance = Vector2.Distance(this.position, calcTarget);
 
             float stepCount = Latency / TimerInterval;
             float target = 1 - threshold;
@@ -70,7 +75,7 @@ namespace TabletDriverFilters.Devocub
 
             // Devocub smoothing
             // Increase weight of filter in {formula} times
-            weightModifier = (float)(Pow(distance + AntichatterOffsetX, AntichatterStrength * -1) * AntichatterMultiplier);
+            var weightModifier = (float)(Pow(distance + AntichatterOffsetX, AntichatterStrength * -1) * AntichatterMultiplier);
 
             // Limit minimum
             if (weightModifier + AntichatterOffsetY < 0)
@@ -80,9 +85,9 @@ namespace TabletDriverFilters.Devocub
 
             weightModifier = weight / weightModifier;
             weightModifier = Math.Clamp(weightModifier, 0, 1);
-            this.lastPos += delta * weightModifier;
+            this.position += delta * weightModifier;
 
-            return lastPos;
+            return this.position;
         }
 
         public static FilterStage FilterStage => FilterStage.PostTranspose;
