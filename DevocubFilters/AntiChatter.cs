@@ -2,71 +2,80 @@ using System;
 using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Tablet;
+using OpenTabletDriver.Plugin.Tablet.Interpolator;
+using OpenTabletDriver.Plugin.Timers;
 
 namespace TabletDriverFilters.Devocub
 {
     using static MathF;
 
     [PluginName("TabletDriver AntiChatter Filter")]
-    public class AntiChatter : IFilter
+    public class AntiChatter : Interpolator
     {
-        private Vector2 _lastPos;
-        private float _timerInterval;
-        private const float _threshold = 0.9f;
-        private float _latency = 2.0f;
+        public AntiChatter(ITimer scheduler) : base(scheduler) {  }
 
-        public Vector2 Filter(Vector2 point)
+        private bool isReady;
+        private Vector2 position;
+        private Vector2 prevTargetPos, targetPos, calcTarget;
+        private SyntheticTabletReport report;
+        private const float threshold = 0.9f;
+        private float latency = 2.0f;
+
+        public override void UpdateState(SyntheticTabletReport report)
         {
-            Vector2 calcTarget = new Vector2();
-            float deltaX, deltaY, distance, weightModifier, predictionModifier;
-
-            if (_lastPos == null)
-            {
-                _lastPos = point;
-                return point;
-            }
+            this.targetPos = report.Position;
 
             if (PredictionEnabled)
             {
                 // Calculate predicted position onNewPacket
-                if (_lastPos.X != point.X || _lastPos.Y != point.Y)
+                if (this.prevTargetPos.X != this.targetPos.X || this.prevTargetPos.Y != this.targetPos.Y)
                 {
                     // Calculate distance between last 2 packets and prediction
-                    deltaX = point.X - _lastPos.X;
-                    deltaY = point.Y - _lastPos.Y;
-                    distance = Sqrt(deltaX * deltaX + deltaY * deltaY);
-                    predictionModifier = 1 / Cosh((distance - PredictionOffsetX) * PredictionSharpness) * PredictionStrength + PredictionOffsetY;
+                    var delta = this.targetPos - this.prevTargetPos;
+                    var distance = Vector2.Distance(this.prevTargetPos, this.targetPos);
+                    var predictionModifier = 1 / Cosh((distance - PredictionOffsetX) * PredictionSharpness) * PredictionStrength + PredictionOffsetY;
 
                     // Apply prediction
-                    deltaX *= predictionModifier;
-                    deltaY *= predictionModifier;
+                    delta *= predictionModifier;
 
                     // Update predicted position
-                    calcTarget.X = (float)(point.X + deltaX);
-                    calcTarget.Y = (float)(point.Y + deltaY);
+                    this.calcTarget = this.targetPos + delta;
 
                     // Update old position for further prediction
-                    _lastPos.X = point.X;
-                    _lastPos.Y = point.Y;
+                    this.prevTargetPos = this.targetPos;
                 }
             }
             else
+                calcTarget = targetPos;
+
+            this.report = report;
+        }
+
+        public override SyntheticTabletReport Interpolate()
+        {
+            this.report.Position = Filter(this.calcTarget);
+            return this.report;
+        }
+
+        public Vector2 Filter(Vector2 calcTarget)
+        {
+            if (!this.isReady)
             {
-                calcTarget.X = point.X;
-                calcTarget.Y = point.Y;
+                this.position = calcTarget;
+                this.isReady = true;
+                return calcTarget;
             }
 
-            deltaX = calcTarget.X - _lastPos.X;
-            deltaY = calcTarget.Y - _lastPos.Y;
-            distance = Sqrt(deltaX * deltaX + deltaY * deltaY);
+            var delta = calcTarget - this.position;
+            var distance = Vector2.Distance(this.position, calcTarget);
 
             float stepCount = Latency / TimerInterval;
-            float target = 1 - _threshold;
+            float target = 1 - threshold;
             float weight = (float)(1.0 - (1.0 / Pow((float)(1.0 / target), (float)(1.0 / stepCount))));
 
             // Devocub smoothing
             // Increase weight of filter in {formula} times
-            weightModifier = (float)(Pow(distance + AntichatterOffsetX, AntichatterStrength * -1) * AntichatterMultiplier);
+            var weightModifier = (float)(Pow(distance + AntichatterOffsetX, AntichatterStrength * -1) * AntichatterMultiplier);
 
             // Limit minimum
             if (weightModifier + AntichatterOffsetY < 0)
@@ -76,26 +85,23 @@ namespace TabletDriverFilters.Devocub
 
             weightModifier = weight / weightModifier;
             weightModifier = Math.Clamp(weightModifier, 0, 1);
-            _lastPos.X += (float)(deltaX * weightModifier);
-            _lastPos.Y += (float)(deltaY * weightModifier);
+            this.position += delta * weightModifier;
 
-            return _lastPos;
+            return this.position;
         }
 
-        public FilterStage FilterStage => FilterStage.PostTranspose;
+        public static FilterStage FilterStage => FilterStage.PostTranspose;
 
-        [SliderProperty("Latency", 0f, 5f, 2f)]
+        [SliderProperty("Latency", 0f, 1000f, 2f)]
         public float Latency
         {
-            set => _latency = Math.Clamp(value, 0, 1000);
-            get => _latency;
+            set => this.latency = Math.Clamp(value, 0, 1000);
+            get => this.latency;
         }
 
-        [Property("Timer Interval"), Unit("hz")]
         public float TimerInterval
         {
-            set => _timerInterval = 1000f / value;
-            get => _timerInterval;
+            get => 1000 / Hertz;
         }
 
         [Property("Antichatter Strength")]
