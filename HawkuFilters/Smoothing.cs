@@ -60,8 +60,8 @@ namespace TabletDriverFilters.Hawku
 
         public static FilterStage FilterStage => FilterStage.PostTranspose;
 
-        [SliderProperty("Latency", 0f, 1000f, 2f)]
-        public float Latency { set; get; } = 2f;
+        [SliderProperty("Latency", 0f, 1000f, 2f), DefaultPropertyValue(2)]
+        public float Latency { set; get; }
 
         public float TimerInterval
         {

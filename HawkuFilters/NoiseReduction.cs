@@ -12,7 +12,7 @@ namespace OpenTabletDriver.Plugin
         private readonly LinkedList<Vector2> buffer = new LinkedList<Vector2>();
         private float distThreshold, distMax;
         private const int iterations = 10;
-        private int samples = 10;
+        private int samples;
         private Vector2 lastPoint;
 
         public Vector2 Filter(Vector2 point)
@@ -164,7 +164,7 @@ namespace OpenTabletDriver.Plugin
             return true;
         }
 
-        [Property("Buffer")]
+        [Property("Buffer"), DefaultPropertyValue(10)]
         public int Samples
         { 
             set

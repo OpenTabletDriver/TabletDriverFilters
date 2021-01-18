@@ -92,43 +92,40 @@ namespace TabletDriverFilters.Devocub
 
         public static FilterStage FilterStage => FilterStage.PostTranspose;
 
-        [SliderProperty("Latency", 0f, 1000f, 2f)]
+        private float TimerInterval => 1000 / Hertz;
+
+        [SliderProperty("Latency", 0f, 1000f, 2f), DefaultPropertyValue(2)]
         public float Latency
         {
             set => this.latency = Math.Clamp(value, 0, 1000);
             get => this.latency;
         }
 
-        public float TimerInterval
-        {
-            get => 1000 / Hertz;
-        }
+        [Property("Antichatter Strength"), DefaultPropertyValue(3)]
+        public float AntichatterStrength { set; get; }
 
-        [Property("Antichatter Strength")]
-        public float AntichatterStrength { set; get; } = 3;
-
-        [Property("Antichatter Multiplier")]
-        public float AntichatterMultiplier { set; get; } = 1;
+        [Property("Antichatter Multiplier"), DefaultPropertyValue(1)]
+        public float AntichatterMultiplier { set; get; }
 
         [Property("Antichatter Offset X")]
         public float AntichatterOffsetX { set; get; }
 
-        [Property("Antichatter Offset Y")]
-        public float AntichatterOffsetY { set; get; } = 1;
+        [Property("Antichatter Offset Y"), DefaultPropertyValue(1)]
+        public float AntichatterOffsetY { set; get; }
 
         [BooleanProperty("Prediction", "")]
         public bool PredictionEnabled { set; get; }
 
-        [Property("Prediction Strength")]
-        public float PredictionStrength { set; get; } = 1.1f;
+        [Property("Prediction Strength"), DefaultPropertyValue(1.1f)]
+        public float PredictionStrength { set; get; }
 
-        [Property("Prediction Sharpness")]
-        public float PredictionSharpness { set; get; } = 1;
+        [Property("Prediction Sharpness"), DefaultPropertyValue(1)]
+        public float PredictionSharpness { set; get; }
 
-        [Property("Prediction Offset X")]
-        public float PredictionOffsetX { set; get; } = 3;
+        [Property("Prediction Offset X"), DefaultPropertyValue(3)]
+        public float PredictionOffsetX { set; get; }
 
-        [Property("Prediction Offset Y")]
-        public float PredictionOffsetY { set; get; } = 0.3f;
+        [Property("Prediction Offset Y"), DefaultPropertyValue(0.3f)]
+        public float PredictionOffsetY { set; get; }
     }
 }
