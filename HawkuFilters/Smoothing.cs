@@ -65,7 +65,7 @@ namespace TabletDriverFilters.Hawku
 
         public float TimerInterval
         {
-            get => 1000 / Hertz;
+            get => 1000 / Frequency;
         }
     }
 }

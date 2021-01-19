@@ -92,7 +92,7 @@ namespace TabletDriverFilters.Devocub
 
         public static FilterStage FilterStage => FilterStage.PostTranspose;
 
-        private float TimerInterval => 1000 / Hertz;
+        private float TimerInterval => 1000 / Frequency;
 
         [SliderProperty("Latency", 0f, 1000f, 2f), DefaultPropertyValue(2)]
         public float Latency
