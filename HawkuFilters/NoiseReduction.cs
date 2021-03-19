@@ -1,8 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Tablet;
+using TabletDriverFilters.Hawku.Utility;
 
 namespace OpenTabletDriver.Plugin
 {
@@ -20,6 +20,7 @@ namespace OpenTabletDriver.Plugin
             set
             {
                 this.samples = Math.Clamp(value, 0, 20);
+                this.buffer = new RingBuffer<Vector2>(this.samples);
             }
             get => this.samples;
         }
@@ -37,7 +38,7 @@ namespace OpenTabletDriver.Plugin
 
         public FilterStage FilterStage => FilterStage.PreTranspose;
 
-        private readonly LinkedList<Vector2> buffer = new LinkedList<Vector2>();
+        private RingBuffer<Vector2> buffer;
         private float distThreshold, distMax;
         private const int iterations = 10;
         private int samples;
@@ -46,9 +47,9 @@ namespace OpenTabletDriver.Plugin
         public Vector2 Filter(Vector2 point)
         {
             point *= mmScale;
-            SetTarget(point);
+            this.buffer.Insert(point);
 
-            if (this.buffer.Count <= 1)
+            if (!this.buffer.IsFilled)
             {
                 return SetOutput(point) / mmScale;
             }
@@ -63,7 +64,7 @@ namespace OpenTabletDriver.Plugin
             if (distance > DistThreshold)
             {
                 // Ratio between current distance and maximum distance
-                double distanceRatio;
+                float distanceRatio;
 
                 // Distance ratio should be between 0.0 and 1.0
                 // 0.0 -> distance == distanceThreshold
@@ -73,10 +74,10 @@ namespace OpenTabletDriver.Plugin
                 if (distanceRatio >= 1f)
                 {
                     // Distance larger than maximum -> fill buffer with the latest target position
-                    var bufCount = this.buffer.Count;
+                    var bufCount = this.buffer.Size;
                     this.buffer.Clear();
                     for (int i = 0; i < bufCount; i++)
-                        this.buffer.AddLast(point);
+                        this.buffer.Insert(point);
                     return SetOutput(point) / mmScale;
                 }
                 else
@@ -84,31 +85,16 @@ namespace OpenTabletDriver.Plugin
                     // Move buffer positions and current position towards the latest target using linear interpolation
                     // Amount of movement is the distance ratio between threshold and maximum
 
-                    var bufNode = buffer.First;
-
-                    while (bufNode != null)
+                    for (int i = 0; i < buffer.Size; i++)
                     {
-                        var bufPoint = bufNode.Value;
-                        bufPoint.X += (float)((point.X - bufPoint.X) * distanceRatio);
-                        bufPoint.Y += (float)((point.Y - bufPoint.Y) * distanceRatio);
-                        bufNode.Value = bufPoint;
-                        bufNode = bufNode.Next;
+                        buffer[i] += (point - buffer[i]) * distanceRatio;
                     }
 
-                    this.lastPoint.X += (float)((point.X - this.lastPoint.X) * distanceRatio);
-                    this.lastPoint.Y += (float)((point.Y - this.lastPoint.Y) * distanceRatio);
-
+                    this.lastPoint += (point - this.lastPoint) * distanceRatio;
                     return this.lastPoint / mmScale;
                 }
             }
             return SetOutput(point) / mmScale;
-        }
-
-        private void SetTarget(Vector2 point)
-        {
-            buffer.AddLast(point);
-            while (buffer.Count > Samples)
-                buffer.RemoveFirst();
         }
 
         private Vector2 SetOutput(Vector2 point)
@@ -121,9 +107,9 @@ namespace OpenTabletDriver.Plugin
         {
             var candidate = new Vector2();
             var next = new Vector2();
-            var minimumDistance = 0.001;
+            var minimumDistance = 0.001f;
 
-            double denominator, weight, distance;
+            float denominator, weight, distance;
 
             // Calculate the starting position
             if (!GetAverageVector(ref candidate))
@@ -140,9 +126,9 @@ namespace OpenTabletDriver.Plugin
                     distance = Vector2.Distance(candidate, bufferPoint);
 
                     if (distance > minimumDistance)
-                        denominator += 1.0 / distance;
+                        denominator += 1f / distance;
                     else
-                        denominator += 1.0 / minimumDistance;
+                        denominator += 1f / minimumDistance;
                 }
 
                 // Reset the next vector
@@ -155,9 +141,9 @@ namespace OpenTabletDriver.Plugin
                     distance = Vector2.Distance(candidate, bufferPoint);
 
                     if (distance > minimumDistance)
-                        weight = 1.0 / distance;
+                        weight = 1f / distance;
                     else
-                        weight = 1.0 / minimumDistance;
+                        weight = 1f / minimumDistance;
 
                     next.X += (float)(bufferPoint.X * weight / denominator);
                     next.Y += (float)(bufferPoint.Y * weight / denominator);
@@ -176,7 +162,7 @@ namespace OpenTabletDriver.Plugin
 
         private bool GetAverageVector(ref Vector2 point)
         {
-            if (buffer.Count == 0)
+            if (buffer.Size == 0)
                 return false;
 
             point.X = 0;
@@ -187,9 +173,9 @@ namespace OpenTabletDriver.Plugin
                 point.X += bufferPoint.X;
                 point.Y += bufferPoint.Y;
             }
-            
-            point.X /= buffer.Count;
-            point.Y /= buffer.Count;
+
+            point.X /= buffer.Size;
+            point.Y /= buffer.Size;
             return true;
         }
 
