@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Numerics;
+using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Tablet;
 using OpenTabletDriver.Plugin.Tablet.Interpolator;
@@ -10,9 +11,10 @@ namespace TabletDriverFilters.Hawku
     [PluginName("TabletDriver Smoothing Filter")]
     public class Smoothing : Interpolator
     {
-        public Smoothing(ITimer scheduler) : base(scheduler) {  }
-
-        public static FilterStage FilterStage => FilterStage.PostTranspose;
+        public Smoothing(ITimer scheduler) : base(scheduler)
+        {
+            GetMMScale();
+        }
 
         [SliderProperty("Latency", 0.0f, 1000.0f, 2.0f), DefaultPropertyValue(2f)]
         public float Latency { set; get; }
@@ -21,19 +23,20 @@ namespace TabletDriverFilters.Hawku
         private float timerInterval => 1000 / Frequency;
         private float weight;
         private DateTime? lastFilterTime;
+        private Vector3 mmScale;
         private Vector3 targetPos;
         private Vector3 lastPos;
         private SyntheticTabletReport report;
 
         public override void UpdateState(SyntheticTabletReport report)
         {
-            this.targetPos = new Vector3(report.Position, report.Pressure);
+            this.targetPos = new Vector3(report.Position, report.Pressure) * mmScale;
             this.report = report;
         }
 
         public override SyntheticTabletReport Interpolate()
         {
-            var newPoint = Filter(this.targetPos);
+            var newPoint = Filter(this.targetPos) / mmScale;
             report.Position = new Vector2(newPoint.X, newPoint.Y);
             report.Pressure = (uint)newPoint.Z;
             return report;
@@ -48,7 +51,7 @@ namespace TabletDriverFilters.Hawku
                 this.lastPos = point;
                 this.lastFilterTime = DateTime.Now;
                 SetWeight(Latency);
-                return point;
+                return point / mmScale;
             }
             else
             {
@@ -56,7 +59,7 @@ namespace TabletDriverFilters.Hawku
 
                 this.lastPos += delta * weight;
                 this.lastFilterTime = DateTime.Now;
-                return this.lastPos;
+                return this.lastPos / mmScale;
             }
         }
 
@@ -65,6 +68,17 @@ namespace TabletDriverFilters.Hawku
             float stepCount = latency / timerInterval;
             float target = 1 - THRESHOLD;
             this.weight = 1f - (1f / MathF.Pow(1f / target, 1f / stepCount));
+        }
+
+        private void GetMMScale()
+        {
+            var digitizer = Info.Driver.Tablet.Digitizer;
+            this.mmScale = new Vector3
+            {
+                X = digitizer.Width / digitizer.MaxX,
+                Y = digitizer.Height / digitizer.MaxY,
+                Z = 1  // passthrough
+            };
         }
     }
 }

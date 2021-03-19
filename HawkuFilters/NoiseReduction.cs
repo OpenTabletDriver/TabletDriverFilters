@@ -9,19 +9,48 @@ namespace OpenTabletDriver.Plugin
     [PluginName("TabletDriver Noise Reduction")]
     public class TabletDriverNoiseReduction : IFilter
     {
+        public TabletDriverNoiseReduction()
+        {
+            GetMMScale();
+        }
+
+        [Property("Buffer"), DefaultPropertyValue(10)]
+        public int Samples
+        {
+            set
+            {
+                this.samples = Math.Clamp(value, 0, 20);
+            }
+            get => this.samples;
+        }
+
+        [Property("Distance Threshold"), Unit("px")]
+        public float DistThreshold
+        {
+            set
+            {
+                this.distThreshold = Math.Clamp(value, 0, 10);
+                distMax = value * 2;
+            }
+            get => this.distThreshold;
+        }
+
+        public FilterStage FilterStage => FilterStage.PreTranspose;
+
         private readonly LinkedList<Vector2> buffer = new LinkedList<Vector2>();
         private float distThreshold, distMax;
         private const int iterations = 10;
         private int samples;
-        private Vector2 lastPoint;
+        private Vector2 lastPoint, mmScale;
 
         public Vector2 Filter(Vector2 point)
         {
+            point *= mmScale;
             SetTarget(point);
 
             if (this.buffer.Count <= 1)
             {
-                return SetOutput(point);
+                return SetOutput(point) / mmScale;
             }
 
             // Calculate geometric median from the buffer positions
@@ -48,7 +77,7 @@ namespace OpenTabletDriver.Plugin
                     this.buffer.Clear();
                     for (int i = 0; i < bufCount; i++)
                         this.buffer.AddLast(point);
-                    return SetOutput(point);
+                    return SetOutput(point) / mmScale;
                 }
                 else
                 {
@@ -69,10 +98,10 @@ namespace OpenTabletDriver.Plugin
                     this.lastPoint.X += (float)((point.X - this.lastPoint.X) * distanceRatio);
                     this.lastPoint.Y += (float)((point.Y - this.lastPoint.Y) * distanceRatio);
 
-                    return this.lastPoint;
+                    return this.lastPoint / mmScale;
                 }
             }
-            return SetOutput(point);
+            return SetOutput(point) / mmScale;
         }
 
         private void SetTarget(Vector2 point)
@@ -164,27 +193,14 @@ namespace OpenTabletDriver.Plugin
             return true;
         }
 
-        [Property("Buffer"), DefaultPropertyValue(10)]
-        public int Samples
-        { 
-            set
-            {
-                this.samples = Math.Clamp(value, 0, 20);
-            }
-            get => this.samples;
-        }
-
-        [Property("Distance Threshold"), Unit("px")]
-        public float DistThreshold
+        private void GetMMScale()
         {
-            set
+            var digitizer = Info.Driver.Tablet.Digitizer;
+            this.mmScale = new Vector2
             {
-                this.distThreshold = Math.Clamp(value, 0, 10);
-                distMax = value * 2;
-            }
-            get => this.distThreshold;
+                X = digitizer.Width / digitizer.MaxX,
+                Y = digitizer.Height / digitizer.MaxY
+            };
         }
-
-        public FilterStage FilterStage => FilterStage.PostTranspose;
     }
 }

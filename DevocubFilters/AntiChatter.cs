@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
 using OpenTabletDriver.Plugin.Tablet;
 using OpenTabletDriver.Plugin.Tablet.Interpolator;
@@ -12,9 +13,10 @@ namespace TabletDriverFilters.Devocub
     [PluginName("TabletDriver AntiChatter Filter")]
     public class AntiChatter : Interpolator
     {
-        public AntiChatter(ITimer scheduler) : base(scheduler) {  }
-
-        public static FilterStage FilterStage => FilterStage.PostTranspose;
+        public AntiChatter(ITimer scheduler) : base(scheduler)
+        {
+            GetMMScale();
+        }
 
         [SliderProperty("Latency", 0f, 1000f, 2f), DefaultPropertyValue(2f)]
         public float Latency
@@ -55,13 +57,14 @@ namespace TabletDriverFilters.Devocub
         private float timerInterval => 1000 / Frequency;
         private float latency = 2.0f;
         private float weight;
+        private Vector2 mmScale;
         private Vector2 position;
         private Vector2 prevTargetPos, targetPos, calcTarget;
         private SyntheticTabletReport report;
 
         public override void UpdateState(SyntheticTabletReport report)
         {
-            this.targetPos = report.Position;
+            this.targetPos = report.Position * mmScale;
 
             if (PredictionEnabled)
             {
@@ -91,7 +94,7 @@ namespace TabletDriverFilters.Devocub
 
         public override SyntheticTabletReport Interpolate()
         {
-            this.report.Position = Filter(this.calcTarget);
+            this.report.Position = Filter(this.calcTarget) / mmScale;
             return this.report;
         }
 
@@ -130,6 +133,16 @@ namespace TabletDriverFilters.Devocub
             float stepCount = latency / timerInterval;
             float target = 1 - THRESHOLD;
             this.weight = 1f - (1f / MathF.Pow(1f / target, 1f / stepCount));
+        }
+
+        private void GetMMScale()
+        {
+            var digitizer = Info.Driver.Tablet.Digitizer;
+            this.mmScale = new Vector2
+            {
+                X = digitizer.Width / digitizer.MaxX,
+                Y = digitizer.Height / digitizer.MaxY
+            };
         }
     }
 }
