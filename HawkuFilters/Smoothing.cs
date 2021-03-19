@@ -2,7 +2,6 @@
 using System.Numerics;
 using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
-using OpenTabletDriver.Plugin.Tablet;
 using OpenTabletDriver.Plugin.Tablet.Interpolator;
 using OpenTabletDriver.Plugin.Timers;
 
@@ -51,7 +50,7 @@ namespace TabletDriverFilters.Hawku
                 this.lastPos = point;
                 this.lastFilterTime = DateTime.Now;
                 SetWeight(Latency);
-                return point / mmScale;
+                return point;
             }
             else
             {
@@ -59,7 +58,7 @@ namespace TabletDriverFilters.Hawku
 
                 this.lastPos += delta * weight;
                 this.lastFilterTime = DateTime.Now;
-                return this.lastPos / mmScale;
+                return this.lastPos;
             }
         }
 
