@@ -24,7 +24,7 @@ namespace OpenTabletDriver.Plugin
             get => this.samples;
         }
 
-        [Property("Distance Threshold"), Unit("px")]
+        [Property("Distance Threshold"), Unit("mm")]
         public float DistThreshold
         {
             set
