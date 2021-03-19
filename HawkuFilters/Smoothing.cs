@@ -7,18 +7,23 @@ using OpenTabletDriver.Plugin.Timers;
 
 namespace TabletDriverFilters.Hawku
 {
-    using static Math;
-
     [PluginName("TabletDriver Smoothing Filter")]
     public class Smoothing : Interpolator
     {
         public Smoothing(ITimer scheduler) : base(scheduler) {  }
 
+        public static FilterStage FilterStage => FilterStage.PostTranspose;
+
+        [SliderProperty("Latency", 0.0f, 1000.0f, 2.0f), DefaultPropertyValue(2f)]
+        public float Latency { set; get; }
+
+        private const float THRESHOLD = 0.63f;
+        private float timerInterval => 1000 / Frequency;
+        private float weight;
         private DateTime? lastFilterTime;
         private Vector3 targetPos;
         private Vector3 lastPos;
         private SyntheticTabletReport report;
-        private const float threshold = 0.63f;
 
         public override void UpdateState(SyntheticTabletReport report)
         {
@@ -42,30 +47,24 @@ namespace TabletDriverFilters.Hawku
             {
                 this.lastPos = point;
                 this.lastFilterTime = DateTime.Now;
+                SetWeight(Latency);
                 return point;
             }
             else
             {
                 Vector3 delta = point - this.lastPos;
 
-                double stepCount = Latency / TimerInterval;
-                double target = 1 - threshold;
-                double weight = 1.0 - (1.0 / Pow(1.0 / target, 1.0 / stepCount));
-
-                this.lastPos += delta * (float)weight;
+                this.lastPos += delta * weight;
                 this.lastFilterTime = DateTime.Now;
                 return this.lastPos;
             }
         }
 
-        public static FilterStage FilterStage => FilterStage.PostTranspose;
-
-        [SliderProperty("Latency", 0f, 1000f, 2f), DefaultPropertyValue(2)]
-        public float Latency { set; get; }
-
-        public float TimerInterval
+        private void SetWeight(float latency)
         {
-            get => 1000 / Frequency;
+            float stepCount = latency / timerInterval;
+            float target = 1 - THRESHOLD;
+            this.weight = 1f - (1f / MathF.Pow(1f / target, 1f / stepCount));
         }
     }
 }
