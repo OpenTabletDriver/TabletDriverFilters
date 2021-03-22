@@ -7,7 +7,7 @@ using OpenTabletDriver.Plugin.Timers;
 
 namespace TabletDriverFilters.Hawku
 {
-    [PluginName("TabletDriver Smoothing Filter")]
+    [PluginName("Hawku Smoothing Filter")]
     public class Smoothing : Interpolator
     {
         public Smoothing(ITimer scheduler) : base(scheduler)

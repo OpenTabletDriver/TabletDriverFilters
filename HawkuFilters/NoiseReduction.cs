@@ -6,10 +6,10 @@ using TabletDriverFilters.Hawku.Utility;
 
 namespace OpenTabletDriver.Plugin
 {
-    [PluginName("TabletDriver Noise Reduction")]
-    public class TabletDriverNoiseReduction : IFilter
+    [PluginName("Hawku Noise Reduction")]
+    public class NoiseReduction : IFilter
     {
-        public TabletDriverNoiseReduction()
+        public NoiseReduction()
         {
             GetMMScale();
         }
@@ -25,13 +25,13 @@ namespace OpenTabletDriver.Plugin
             get => this.samples;
         }
 
-        [Property("Distance Threshold"), Unit("mm")]
-        public float DistThreshold
+        [Property("Distance Threshold"), Unit("mm"), DefaultPropertyValue(0.5f)]
+        public float DistanceThreshold
         {
             set
             {
                 this.distThreshold = Math.Clamp(value, 0, 10);
-                distMax = value * 2;
+                distanceMax = this.distThreshold * 2;
             }
             get => this.distThreshold;
         }
@@ -39,10 +39,10 @@ namespace OpenTabletDriver.Plugin
         public FilterStage FilterStage => FilterStage.PreTranspose;
 
         private RingBuffer<Vector2> buffer;
-        private float distThreshold, distMax;
-        private const int iterations = 10;
+        private float distThreshold, distanceMax;
+        private const float minimumDistance = 0.001f;
         private int samples;
-        private Vector2 lastPoint, mmScale;
+        private Vector2 outputPosition, mmScale;
 
         public Vector2 Filter(Vector2 point)
         {
@@ -51,17 +51,18 @@ namespace OpenTabletDriver.Plugin
 
             if (!this.buffer.IsFilled)
             {
-                return SetOutput(point) / mmScale;
+                this.outputPosition = point;
+                return this.outputPosition / mmScale;
             }
 
             // Calculate geometric median from the buffer positions
-            this.lastPoint = GetGeometricMedianVector(this.lastPoint);
+            this.outputPosition = GetGeometricMedianVector();
 
             // Distance between latest position and ring buffer
-            var distance = Vector2.Distance(point, this.lastPoint);
+            var distance = Vector2.Distance(point, this.outputPosition);
 
             // Distance larger than threshold -> modify the ring buffer
-            if (distance > DistThreshold)
+            if (distance > DistanceThreshold)
             {
                 // Ratio between current distance and maximum distance
                 float distanceRatio;
@@ -69,114 +70,75 @@ namespace OpenTabletDriver.Plugin
                 // Distance ratio should be between 0.0 and 1.0
                 // 0.0 -> distance == distanceThreshold
                 // 1.0 -> distance == distanceMaximum
-                distanceRatio = (distance - DistThreshold) / (this.distMax - DistThreshold);
+                distanceRatio = (distance - DistanceThreshold) / (distanceMax - DistanceThreshold);
 
                 if (distanceRatio >= 1f)
                 {
                     // Distance larger than maximum -> fill buffer with the latest target position
-                    var bufCount = this.buffer.Size;
-                    this.buffer.Clear();
-                    for (int i = 0; i < bufCount; i++)
-                        this.buffer.Insert(point);
-                    return SetOutput(point) / mmScale;
+                    this.buffer.Clear(point);
+                    this.outputPosition = point;
                 }
                 else
                 {
                     // Move buffer positions and current position towards the latest target using linear interpolation
                     // Amount of movement is the distance ratio between threshold and maximum
-
                     for (int i = 0; i < buffer.Size; i++)
                     {
                         buffer[i] += (point - buffer[i]) * distanceRatio;
                     }
 
-                    this.lastPoint += (point - this.lastPoint) * distanceRatio;
-                    return this.lastPoint / mmScale;
+                    this.outputPosition += (point - this.outputPosition) * distanceRatio;
+                    return this.outputPosition / mmScale;
                 }
             }
-            return SetOutput(point) / mmScale;
+            return this.outputPosition / mmScale;
         }
 
-        private Vector2 SetOutput(Vector2 point)
+        private Vector2 GetGeometricMedianVector()
         {
-            this.lastPoint = point;
-            return point;
-        }
-
-        private Vector2 GetGeometricMedianVector(Vector2 point)
-        {
-            var candidate = new Vector2();
             var next = new Vector2();
-            var minimumDistance = 0.001f;
-
-            float denominator, weight, distance;
+            float denominator, weight;
 
             // Calculate the starting position
-            if (!GetAverageVector(ref candidate))
-                return this.lastPoint;
+            GetAverageVector(out var candidate);
 
-            // Iterate
-            for (int iteration = 0; iteration < iterations; iteration++)
-            {
-                denominator = 0;
+            denominator = 0;
 
-                // Loop through the buffer and calculate a denominator.
-                foreach (var bufferPoint in buffer)
-                {
-                    distance = Vector2.Distance(candidate, bufferPoint);
-
-                    if (distance > minimumDistance)
-                        denominator += 1f / distance;
-                    else
-                        denominator += 1f / minimumDistance;
-                }
-
-                // Reset the next vector
-                next.X = 0;
-                next.Y = 0;
-
-                // Loop through the buffer and calculate a weighted average
-                foreach (var bufferPoint in buffer)
-                {
-                    distance = Vector2.Distance(candidate, bufferPoint);
-
-                    if (distance > minimumDistance)
-                        weight = 1f / distance;
-                    else
-                        weight = 1f / minimumDistance;
-
-                    next.X += (float)(bufferPoint.X * weight / denominator);
-                    next.Y += (float)(bufferPoint.Y * weight / denominator);
-                }
-
-                // Set the new candidate vector
-                candidate.X = next.X;
-                candidate.Y = next.Y;
-            }
-
-            // Set output
-            point.X = candidate.X;
-            point.Y = candidate.Y;
-            return point;
-        }
-
-        private bool GetAverageVector(ref Vector2 point)
-        {
-            if (buffer.Size == 0)
-                return false;
-
-            point.X = 0;
-            point.Y = 0;
-
+            // Loop through the buffer and calculate a denominator.
             foreach (var bufferPoint in buffer)
             {
-                point.X += bufferPoint.X;
-                point.Y += bufferPoint.Y;
+                var distance = Vector2.Distance(candidate, bufferPoint);
+
+                if (distance > minimumDistance)
+                    denominator += 1f / distance;
+                else
+                    denominator += 1f / minimumDistance;
             }
 
-            point.X /= buffer.Size;
-            point.Y /= buffer.Size;
-            return true;
+            // Loop through the buffer and calculate a weighted average
+            foreach (var bufferPoint in buffer)
+            {
+                var distance = Vector2.Distance(candidate, bufferPoint);
+
+                if (distance > minimumDistance)
+                    weight = 1f / distance;
+                else
+                    weight = 1f / minimumDistance;
+
+                next += bufferPoint * weight / denominator;
+            }
+
+            return next;
+        }
+
+        private void GetAverageVector(out Vector2 point)
+        {
+            point = new Vector2();
+
+            foreach (var bufferPoint in buffer)
+                point += bufferPoint;
+
+            point /= buffer.Size;
         }
 
         private void GetMMScale()

@@ -2,7 +2,6 @@ using System;
 using System.Numerics;
 using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
-using OpenTabletDriver.Plugin.Tablet;
 using OpenTabletDriver.Plugin.Tablet.Interpolator;
 using OpenTabletDriver.Plugin.Timers;
 
@@ -10,10 +9,10 @@ namespace TabletDriverFilters.Devocub
 {
     using static MathF;
 
-    [PluginName("TabletDriver AntiChatter Filter")]
-    public class AntiChatter : Interpolator
+    [PluginName("Devocub Antichatter")]
+    public class Antichatter : Interpolator
     {
-        public AntiChatter(ITimer scheduler) : base(scheduler)
+        public Antichatter(ITimer scheduler) : base(scheduler)
         {
             GetMMScale();
         }

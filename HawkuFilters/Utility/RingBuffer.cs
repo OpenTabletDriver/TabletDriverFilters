@@ -36,6 +36,12 @@ namespace TabletDriverFilters.Hawku.Utility
             this.IsFilled = false;
         }
 
+        public void Clear(T item)
+        {
+            for (int i = 0; i < this.dataStream.Length; i++)
+                this.dataStream[i] = item;
+        }
+
         private int Wrap(int index)
         {
             return (index + this.Size) % this.Size;
