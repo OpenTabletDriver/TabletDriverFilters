@@ -46,7 +46,7 @@ namespace TabletDriverFilters.Devocub
             + "      Increase Strength to 4-10 to get harper. Decrease Strength to 1-2 to get more smoothing.\n"
             + "\n"
             + " - Low latency: Set Offset Y to 0 (and potentially set Latency to 1-10 ms. However, with some settings this can break smoothing, usually OffsetY 0 is enough to being able to go to lowest latency).";
-        private const string Prediction_Tooltip =
+        private const string PREDICTION_TOOLTIP =
               "Prediction - How it works: It adds a predicted point to smoothing algorithm. It helps to preserve sharpness of movement, helps with small movements,\n"
             + "   Low values (~10-15ms) of smoothing latency can cause problems for cursor movement. It's very preferred to use at least 10-15ms of smoothing latency, 20-40 ms is even better and recommended.\n"
             + "   In some cases, cursor can even outdistance real position (similar to Wacom 6.3.95 drivers).\n"
@@ -97,19 +97,19 @@ namespace TabletDriverFilters.Devocub
         [Property("Antichatter Offset Y"), DefaultPropertyValue(1f), ToolTip(ANTICHATTER_TOOLTIP)]
         public float AntichatterOffsetY { set; get; }
 
-        [BooleanProperty("Prediction", ""), ToolTip(Prediction_Tooltip)]
+        [BooleanProperty("Prediction", ""), ToolTip(PREDICTION_TOOLTIP)]
 
         public bool PredictionEnabled { set; get; }
-        [Property("Prediction Strength"), DefaultPropertyValue(1.1f), ToolTip(Prediction_Tooltip)]
+        [Property("Prediction Strength"), DefaultPropertyValue(1.1f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionStrength { set; get; }
 
-        [Property("Prediction Sharpness"), DefaultPropertyValue(1f), ToolTip(Prediction_Tooltip)]
+        [Property("Prediction Sharpness"), DefaultPropertyValue(1f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionSharpness { set; get; }
 
-        [Property("Prediction Offset X"), DefaultPropertyValue(3f), ToolTip(Prediction_Tooltip)]
+        [Property("Prediction Offset X"), DefaultPropertyValue(3f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionOffsetX { set; get; }
 
-        [Property("Prediction Offset Y"), DefaultPropertyValue(0.3f), ToolTip(Prediction_Tooltip)]
+        [Property("Prediction Offset Y"), DefaultPropertyValue(0.3f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionOffsetY { set; get; }
 
         private const float THRESHOLD = 0.9f;
