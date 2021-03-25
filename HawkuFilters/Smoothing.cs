@@ -16,6 +16,16 @@ namespace TabletDriverFilters.Hawku
         }
 
         [SliderProperty("Latency", 0.0f, 1000.0f, 2.0f), DefaultPropertyValue(2f)]
+        [ToolTip(
+              "Smoothing Filter\n"
+            + " - Smoothing filter adds latency to the input, so don't enable it if you want the lowest possible input latency.\n"
+            + "\n"
+            + "Recommendations\n"
+            + " - On Wacom tablets you can use latency value between 15 and 25 to have a similar smoothing as in the Wacom drivers.\n"
+            + " - You can test out different filter values, but recommended maximum for osu! is around 50 milliseconds.\n"
+            + " - Filter latency value lower than 4 milliseconds isn't recommended. Its better to just disable the smoothing filter.\n"
+            + " - You don't have to change the filter frequency, but you can use the highest frequency your computer can run without performance problems."
+        )]
         public float Latency { set; get; }
 
         private const float THRESHOLD = 0.63f;

@@ -9,12 +9,29 @@ namespace OpenTabletDriver.Plugin
     [PluginName("Hawku Noise Reduction")]
     public class NoiseReduction : IFilter
     {
+        private const string NOISEREDUCTION_TOOLTIP =
+              "Noise Reduction Filter:\n"
+            + "   WARNING! This filter will cause more latency on smaller tablet areas(<20 mm), so consider using a larger area to increase the performance.\n"
+            + "\n"
+            + "Buffer:\n"
+            + " - Buffer value is how many of the last pen positions will be stored in the buffer.\n"
+            + " - Lower buffer value means lower latency, but lower noise reduction.\n"
+            + " - At 133 RPS, the buffer size of 10 means a maximum latency of 75 milliseconds.\n"
+            + "\n"
+            + "Threshold:\n"
+            + " - Threshold value sets the movement distance threshold per pen position report.\n"
+            + " - The amount of noise reduction will be at it's maximum if the pen movement is shorter than the threshold value.\n"
+            + " - Noise reduction and latency will be almost zero if the pen position movement is double the distance of the threshold value.\n"
+            + " - At 133 RPS, a threshold value of 0.5 mm means for speeds of ~66.5 mm/s noise reduction and latency will be applied but for ~133 mm/s the noise reduction and latency will be near zero.\n"
+            + "\n"
+            + "Recommendations:\n"
+            + "   Samples = 5 - 20, Threshold = 0.2 - 1.0 mm.";
         public NoiseReduction()
         {
             GetMMScale();
         }
 
-        [Property("Buffer"), DefaultPropertyValue(10)]
+        [Property("Buffer"), DefaultPropertyValue(10), ToolTip(NOISEREDUCTION_TOOLTIP)]
         public int Samples
         {
             set
@@ -25,7 +42,7 @@ namespace OpenTabletDriver.Plugin
             get => this.samples;
         }
 
-        [Property("Distance Threshold"), Unit("mm"), DefaultPropertyValue(0.5f)]
+        [Property("Distance Threshold"), Unit("mm"), DefaultPropertyValue(0.5f), ToolTip(NOISEREDUCTION_TOOLTIP)]
         public float DistanceThreshold
         {
             set
