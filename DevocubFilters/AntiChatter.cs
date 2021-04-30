@@ -43,7 +43,7 @@ namespace TabletDriverFilters.Devocub
             + "\n"
             + " - Smooth: Latency ~10 ms, Strength 3, Multiplier 100, OffsetX 1.5, OffsetY 1.\n"
             + "      Change OffsetX between 0-2 to switch between stickiness and smooth.\n"
-            + "      Increase Strength to 4-10 to get harper. Decrease Strength to 1-2 to get more smoothing.\n"
+            + "      Increase Strength to 4-10 to get more sharp. Decrease Strength to 1-2 to get more smoothing.\n"
             + "\n"
             + " - Low latency: Set Offset Y to 0 (and potentially set Latency to 1-10 ms. However, with some settings this can break smoothing, usually OffsetY 0 is enough to being able to go to lowest latency).";
         private const string PREDICTION_TOOLTIP =
