@@ -2,15 +2,13 @@ using System;
 using System.Numerics;
 using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
-using OpenTabletDriver.Plugin.Tablet.Interpolator;
-using OpenTabletDriver.Plugin.Timers;
+using OpenTabletDriver.Plugin.Output;
+using OpenTabletDriver.Plugin.Tablet;
 
 namespace TabletDriverFilters.Devocub
 {
-    using static MathF;
-
     [PluginName("Devocub Antichatter")]
-    public class Antichatter : Interpolator
+    public class Antichatter : AsyncPositionedPipelineElement<IDeviceReport>
     {
         private const string LATENCY_TOOLTIP =
               "Smoothing latency\n"
@@ -73,10 +71,12 @@ namespace TabletDriverFilters.Devocub
             + "      Smoothing: Latency 40ms, Strength 3, Multiplier 10, OffsetX 1, OffsetY 1\n"
             + "      Prediction: Strength 4, Sharpness 0.75, Offset 2.5, OffsetY 1";
 
-        public Antichatter(ITimer scheduler) : base(scheduler)
+        public Antichatter()
         {
             GetMMScale();
         }
+
+        public override PipelinePosition Position => PipelinePosition.PreTransform;
 
         [SliderProperty("Latency", 0f, 1000f, 2f), DefaultPropertyValue(2f), ToolTip(LATENCY_TOOLTIP)]
         public float Latency
@@ -98,8 +98,8 @@ namespace TabletDriverFilters.Devocub
         public float AntichatterOffsetY { set; get; }
 
         [BooleanProperty("Prediction", ""), ToolTip(PREDICTION_TOOLTIP)]
-
         public bool PredictionEnabled { set; get; }
+
         [Property("Prediction Strength"), DefaultPropertyValue(1.1f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionStrength { set; get; }
 
@@ -120,42 +120,50 @@ namespace TabletDriverFilters.Devocub
         private Vector2 mmScale;
         private Vector2 position;
         private Vector2 prevTargetPos, targetPos, calcTarget;
-        private SyntheticTabletReport report;
 
-        public override void UpdateState(SyntheticTabletReport report)
+        protected override void ConsumeState()
         {
-            this.targetPos = report.Position * mmScale;
-
-            if (PredictionEnabled)
+            if (State is ITabletReport report)
             {
-                // Calculate predicted position onNewPacket
-                if (this.prevTargetPos.X != this.targetPos.X || this.prevTargetPos.Y != this.targetPos.Y)
+                this.targetPos = report.Position * mmScale;
+
+                if (PredictionEnabled)
                 {
-                    // Calculate distance between last 2 packets and prediction
-                    var delta = this.targetPos - this.prevTargetPos;
-                    var distance = Vector2.Distance(this.prevTargetPos, this.targetPos);
-                    var predictionModifier = 1 / Cosh((distance - PredictionOffsetX) * PredictionSharpness) * PredictionStrength + PredictionOffsetY;
+                    // Calculate predicted position onNewPacket
+                    if (this.prevTargetPos.X != this.targetPos.X || this.prevTargetPos.Y != this.targetPos.Y)
+                    {
+                        // Calculate distance between last 2 packets and prediction
+                        var delta = this.targetPos - this.prevTargetPos;
+                        var distance = Vector2.Distance(this.prevTargetPos, this.targetPos);
+                        var predictionModifier = 1 / MathF.Cosh((distance - PredictionOffsetX) * PredictionSharpness) * PredictionStrength + PredictionOffsetY;
 
-                    // Apply prediction
-                    delta *= predictionModifier;
+                        // Apply prediction
+                        delta *= predictionModifier;
 
-                    // Update predicted position
-                    this.calcTarget = this.targetPos + delta;
+                        // Update predicted position
+                        this.calcTarget = this.targetPos + delta;
 
-                    // Update old position for further prediction
-                    this.prevTargetPos = this.targetPos;
+                        // Update old position for further prediction
+                        this.prevTargetPos = this.targetPos;
+                    }
                 }
+                else
+                    calcTarget = targetPos;
             }
-            else
-                calcTarget = targetPos;
-
-            this.report = report;
         }
 
-        public override SyntheticTabletReport Interpolate()
+        protected override void UpdateState()
         {
-            this.report.Position = Filter(this.calcTarget) / mmScale;
-            return this.report;
+            if (State is ITabletReport report)
+            {
+                report.Position = Filter(calcTarget) / mmScale;
+                State = report;
+            }
+
+            if (PenIsInRange() || State is not ITabletReport)
+            {
+                OnEmit();
+            }
         }
 
         public Vector2 Filter(Vector2 calcTarget)
@@ -173,7 +181,7 @@ namespace TabletDriverFilters.Devocub
 
             // Devocub smoothing
             // Increase weight of filter in {formula} times
-            var weightModifier = (float)(Pow(distance + AntichatterOffsetX, AntichatterStrength * -1) * AntichatterMultiplier);
+            var weightModifier = (float)(MathF.Pow(distance + AntichatterOffsetX, AntichatterStrength * -1) * AntichatterMultiplier);
 
             // Limit minimum
             if (weightModifier + AntichatterOffsetY < 0)

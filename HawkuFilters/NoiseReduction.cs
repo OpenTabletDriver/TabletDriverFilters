@@ -1,13 +1,14 @@
 using System;
 using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
+using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
 using TabletDriverFilters.Hawku.Utility;
 
 namespace OpenTabletDriver.Plugin
 {
     [PluginName("Hawku Noise Reduction")]
-    public class NoiseReduction : IFilter
+    public class NoiseReduction : IPositionedPipelineElement<IDeviceReport>
     {
         private const string NOISEREDUCTION_TOOLTIP =
               "Noise Reduction Filter:\n"
@@ -26,6 +27,7 @@ namespace OpenTabletDriver.Plugin
             + "\n"
             + "Recommendations:\n"
             + "   Samples = 5 - 20, Threshold = 0.2 - 1.0 mm.";
+
         public NoiseReduction()
         {
             GetMMScale();
@@ -53,13 +55,26 @@ namespace OpenTabletDriver.Plugin
             get => this.distThreshold;
         }
 
-        public FilterStage FilterStage => FilterStage.PreTranspose;
+        public PipelinePosition Position => PipelinePosition.PreTransform;
 
         private RingBuffer<Vector2> buffer;
         private float distThreshold, distanceMax;
         private const float minimumDistance = 0.001f;
         private int samples;
         private Vector2 outputPosition, mmScale;
+
+        public event Action<IDeviceReport> Emit;
+
+        public void Consume(IDeviceReport value)
+        {
+            if (value is ITabletReport report)
+            {
+                report.Position = Filter(report.Position);
+                value = report;
+            }
+
+            Emit?.Invoke(value);
+        }
 
         public Vector2 Filter(Vector2 point)
         {
