@@ -1,13 +1,15 @@
 using System;
 using System.Numerics;
 using OpenTabletDriver.Plugin.Attributes;
+using OpenTabletDriver.Plugin.Output;
 using OpenTabletDriver.Plugin.Tablet;
+using TabletDriverFilters;
 using TabletDriverFilters.Hawku.Utility;
 
 namespace OpenTabletDriver.Plugin
 {
     [PluginName("Hawku Noise Reduction")]
-    public class NoiseReduction : IFilter
+    public class NoiseReduction : MillimeterPositionedPipelineElement
     {
         private const string NOISEREDUCTION_TOOLTIP =
               "Noise Reduction Filter:\n"
@@ -26,10 +28,6 @@ namespace OpenTabletDriver.Plugin
             + "\n"
             + "Recommendations:\n"
             + "   Samples = 5 - 20, Threshold = 0.2 - 1.0 mm.";
-        public NoiseReduction()
-        {
-            GetMMScale();
-        }
 
         [Property("Buffer"), DefaultPropertyValue(10), ToolTip(NOISEREDUCTION_TOOLTIP)]
         public int Samples
@@ -53,23 +51,36 @@ namespace OpenTabletDriver.Plugin
             get => this.distThreshold;
         }
 
-        public FilterStage FilterStage => FilterStage.PreTranspose;
+        public override PipelinePosition Position => PipelinePosition.PreTransform;
 
         private RingBuffer<Vector2> buffer;
         private float distThreshold, distanceMax;
         private const float minimumDistance = 0.001f;
         private int samples;
-        private Vector2 outputPosition, mmScale;
+        private Vector2 outputPosition;
+
+        public override event Action<IDeviceReport> Emit;
+
+        public override void Consume(IDeviceReport value)
+        {
+            if (value is ITabletReport report)
+            {
+                report.Position = Filter(report.Position);
+                value = report;
+            }
+
+            Emit?.Invoke(value);
+        }
 
         public Vector2 Filter(Vector2 point)
         {
-            point *= mmScale;
+            point *= MillimeterScale;
             this.buffer.Insert(point);
 
             if (!this.buffer.IsFilled)
             {
                 this.outputPosition = point;
-                return this.outputPosition / mmScale;
+                return this.outputPosition / MillimeterScale;
             }
 
             // Calculate geometric median from the buffer positions
@@ -105,10 +116,10 @@ namespace OpenTabletDriver.Plugin
                     }
 
                     this.outputPosition += (point - this.outputPosition) * distanceRatio;
-                    return this.outputPosition / mmScale;
+                    return this.outputPosition / MillimeterScale;
                 }
             }
-            return this.outputPosition / mmScale;
+            return this.outputPosition / MillimeterScale;
         }
 
         private Vector2 GetGeometricMedianVector()
@@ -156,16 +167,6 @@ namespace OpenTabletDriver.Plugin
                 point += bufferPoint;
 
             point /= buffer.Size;
-        }
-
-        private void GetMMScale()
-        {
-            var digitizer = Info.Driver.Tablet.Digitizer;
-            this.mmScale = new Vector2
-            {
-                X = digitizer.Width / digitizer.MaxX,
-                Y = digitizer.Height / digitizer.MaxY
-            };
         }
     }
 }

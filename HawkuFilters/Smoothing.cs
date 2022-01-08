@@ -1,19 +1,15 @@
 ﻿using System;
 using System.Numerics;
-using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
-using OpenTabletDriver.Plugin.Tablet.Interpolator;
-using OpenTabletDriver.Plugin.Timers;
+using OpenTabletDriver.Plugin.Output;
+using OpenTabletDriver.Plugin.Tablet;
 
 namespace TabletDriverFilters.Hawku
 {
     [PluginName("Hawku Smoothing Filter")]
-    public class Smoothing : Interpolator
+    public class Smoothing : MillimeterAsyncPositionedPipelineElement
     {
-        public Smoothing(ITimer scheduler) : base(scheduler)
-        {
-            GetMMScale();
-        }
+        public override PipelinePosition Position => PipelinePosition.PreTransform;
 
         [SliderProperty("Latency", 0.0f, 1000.0f, 2.0f), DefaultPropertyValue(2f)]
         [ToolTip(
@@ -30,25 +26,31 @@ namespace TabletDriverFilters.Hawku
 
         private const float THRESHOLD = 0.63f;
         private float timerInterval => 1000 / Frequency;
+
         private float weight;
         private DateTime? lastFilterTime;
         private Vector3 mmScale;
         private Vector3 targetPos;
         private Vector3 lastPos;
-        private SyntheticTabletReport report;
 
-        public override void UpdateState(SyntheticTabletReport report)
+        protected override void ConsumeState()
         {
-            this.targetPos = new Vector3(report.Position, report.Pressure) * mmScale;
-            this.report = report;
+            if (State is ITabletReport report)
+                this.targetPos = new Vector3(report.Position, report.Pressure) * mmScale;
         }
 
-        public override SyntheticTabletReport Interpolate()
+        protected override void UpdateState()
         {
-            var newPoint = Filter(this.targetPos) / mmScale;
-            report.Position = new Vector2(newPoint.X, newPoint.Y);
-            report.Pressure = (uint)newPoint.Z;
-            return report;
+            if (State is ITabletReport report)
+            {
+                var newPoint = Filter(this.targetPos) / mmScale;
+                report.Position = new Vector2(newPoint.X, newPoint.Y);
+                report.Pressure = (uint)newPoint.Z;
+                State = report;
+            }
+
+            if (PenIsInRange() || State is not ITabletReport)
+                OnEmit();
         }
 
         public Vector3 Filter(Vector3 point)
@@ -79,9 +81,9 @@ namespace TabletDriverFilters.Hawku
             this.weight = 1f - (1f / MathF.Pow(1f / target, 1f / stepCount));
         }
 
-        private void GetMMScale()
+        protected override void HandleTabletReference(TabletReference tabletReference)
         {
-            var digitizer = Info.Driver.Tablet.Digitizer;
+            var digitizer = tabletReference.Properties.Specifications.Digitizer;
             this.mmScale = new Vector3
             {
                 X = digitizer.Width / digitizer.MaxX,
