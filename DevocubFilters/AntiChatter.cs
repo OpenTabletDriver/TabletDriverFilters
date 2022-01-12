@@ -112,6 +112,7 @@ namespace TabletDriverFilters.Devocub
         private float latency = 2.0f;
         private float weight;
         private Vector2 position;
+        private uint pressure;
         private Vector2 prevTargetPos, targetPos, calcTarget;
 
         protected override void ConsumeState()
@@ -119,6 +120,7 @@ namespace TabletDriverFilters.Devocub
             if (State is ITabletReport report)
             {
                 this.targetPos = report.Position * MillimeterScale;
+                this.pressure = report.Pressure;
 
                 if (PredictionEnabled)
                 {
@@ -150,6 +152,7 @@ namespace TabletDriverFilters.Devocub
             if (State is ITabletReport report)
             {
                 report.Position = Filter(calcTarget) / MillimeterScale;
+                report.Pressure = this.pressure;
                 State = report;
             }
 
