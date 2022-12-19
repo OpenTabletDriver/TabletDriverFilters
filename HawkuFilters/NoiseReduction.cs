@@ -1,8 +1,9 @@
 using System;
+using System.ComponentModel;
 using System.Numerics;
-using OpenTabletDriver.Plugin.Attributes;
-using OpenTabletDriver.Plugin.Output;
-using OpenTabletDriver.Plugin.Tablet;
+using OpenTabletDriver.Attributes;
+using OpenTabletDriver.Output;
+using OpenTabletDriver.Tablet;
 using TabletDriverFilters;
 using TabletDriverFilters.Hawku.Utility;
 
@@ -29,7 +30,7 @@ namespace OpenTabletDriver.Plugin
             + "Recommendations:\n"
             + "   Samples = 5 - 20, Threshold = 0.2 - 1.0 mm.";
 
-        [Property("Buffer"), DefaultPropertyValue(10), ToolTip(NOISEREDUCTION_TOOLTIP)]
+        [Setting("Buffer"), DefaultValue(10), ToolTip(NOISEREDUCTION_TOOLTIP)]
         public int Samples
         {
             set
@@ -40,7 +41,7 @@ namespace OpenTabletDriver.Plugin
             get => this.samples;
         }
 
-        [Property("Distance Threshold"), Unit("mm"), DefaultPropertyValue(0.5f), ToolTip(NOISEREDUCTION_TOOLTIP)]
+        [Setting("Distance Threshold"), Unit("mm"), DefaultValue(0.5f), ToolTip(NOISEREDUCTION_TOOLTIP)]
         public float DistanceThreshold
         {
             set
@@ -58,6 +59,10 @@ namespace OpenTabletDriver.Plugin
         private const float minimumDistance = 0.001f;
         private int samples;
         private Vector2 outputPosition;
+
+        public NoiseReduction(InputDevice inputDevice) : base(inputDevice)
+        {
+        }
 
         public override event Action<IDeviceReport> Emit;
 

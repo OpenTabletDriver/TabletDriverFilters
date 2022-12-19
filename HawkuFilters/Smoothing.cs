@@ -1,8 +1,10 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Numerics;
-using OpenTabletDriver.Plugin.Attributes;
-using OpenTabletDriver.Plugin.Output;
-using OpenTabletDriver.Plugin.Tablet;
+using OpenTabletDriver;
+using OpenTabletDriver.Attributes;
+using OpenTabletDriver.Output;
+using OpenTabletDriver.Tablet;
 
 namespace TabletDriverFilters.Hawku
 {
@@ -11,7 +13,7 @@ namespace TabletDriverFilters.Hawku
     {
         public override PipelinePosition Position => PipelinePosition.PreTransform;
 
-        [SliderProperty("Latency", 0.0f, 1000.0f, 2.0f), DefaultPropertyValue(2f)]
+        [RangeSetting("Latency", 0.0f, 1000.0f, 2.0f), DefaultValue(2f)]
         [ToolTip(
               "Smoothing Filter\n"
             + " - Smoothing filter adds latency to the input, so don't enable it if you want the lowest possible input latency.\n"
@@ -25,13 +27,24 @@ namespace TabletDriverFilters.Hawku
         public float Latency { set; get; }
 
         private const float THRESHOLD = 0.63f;
-        private float timerInterval => 1000 / Frequency;
+        private float TimerInterval => 1000 / Frequency;
 
         private float weight;
         private DateTime? lastFilterTime;
         private Vector3 mmScale;
         private Vector3 targetPos;
         private Vector3 lastPos;
+
+        public Smoothing(InputDevice inputDevice, ITimer scheduler) : base(inputDevice, scheduler)
+        {
+            var digitizer = inputDevice.Configuration.Specifications.Digitizer;
+            this.mmScale = new Vector3
+            {
+                X = digitizer.Width / digitizer.MaxX,
+                Y = digitizer.Height / digitizer.MaxY,
+                Z = 1  // passthrough
+            };
+        }
 
         protected override void ConsumeState()
         {
@@ -76,20 +89,9 @@ namespace TabletDriverFilters.Hawku
 
         private void SetWeight(float latency)
         {
-            float stepCount = latency / timerInterval;
+            float stepCount = latency / TimerInterval;
             float target = 1 - THRESHOLD;
             this.weight = 1f - (1f / MathF.Pow(1f / target, 1f / stepCount));
-        }
-
-        protected override void HandleTabletReference(TabletReference tabletReference)
-        {
-            var digitizer = tabletReference.Properties.Specifications.Digitizer;
-            this.mmScale = new Vector3
-            {
-                X = digitizer.Width / digitizer.MaxX,
-                Y = digitizer.Height / digitizer.MaxY,
-                Z = 1  // passthrough
-            };
         }
     }
 }
