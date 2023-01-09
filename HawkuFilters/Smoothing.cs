@@ -35,7 +35,7 @@ namespace TabletDriverFilters.Hawku
         private Vector3 targetPos;
         private Vector3 lastPos;
 
-        public Smoothing(InputDevice inputDevice, ITimer scheduler) : base(inputDevice, scheduler)
+        public Smoothing(InputDevice inputDevice, ITimer scheduler, ISettingsProvider settingsProvider) : base(inputDevice, scheduler)
         {
             var digitizer = inputDevice.Configuration.Specifications.Digitizer;
             this.mmScale = new Vector3
@@ -44,6 +44,8 @@ namespace TabletDriverFilters.Hawku
                 Y = digitizer.Height / digitizer.MaxY,
                 Z = 1  // passthrough
             };
+
+            settingsProvider.Inject(this);
         }
 
         protected override void ConsumeState()

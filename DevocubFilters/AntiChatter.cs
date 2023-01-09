@@ -117,8 +117,9 @@ namespace TabletDriverFilters.Devocub
         private uint pressure;
         private Vector2 prevTargetPos, targetPos, calcTarget;
 
-        public Antichatter(InputDevice inputDevice, ITimer scheduler) : base(inputDevice, scheduler)
+        public Antichatter(InputDevice inputDevice, ITimer scheduler, ISettingsProvider settingsProvider) : base(inputDevice, scheduler)
         {
+            settingsProvider.Inject(this);
         }
 
         protected override void ConsumeState()

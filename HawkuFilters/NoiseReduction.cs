@@ -60,8 +60,9 @@ namespace OpenTabletDriver.Plugin
         private int samples;
         private Vector2 outputPosition;
 
-        public NoiseReduction(InputDevice inputDevice) : base(inputDevice)
+        public NoiseReduction(InputDevice inputDevice, ISettingsProvider settingsProvider) : base(inputDevice)
         {
+            settingsProvider.Inject(this);
         }
 
         public override event Action<IDeviceReport> Emit;
