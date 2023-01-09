@@ -27,7 +27,7 @@ jobs:
         dotnet-version: '7.0'
 
     - name: Filters Build
-      run: dotnet build ${{ matrix.Filters }}/${{ matrix.Filters }}.csproj -o ./build
+      run: dotnet build ${{ matrix.Filters }}/${{ matrix.Filters }}.csproj -o ./build -c Release
 
     - name: Upload Filters artifact
       uses: actions/upload-artifact@master
