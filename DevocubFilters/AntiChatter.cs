@@ -145,19 +145,20 @@ namespace TabletDriverFilters.Devocub
                 else
                     calcTarget = targetPos;
             }
+            else
+            {
+                OnEmit();
+            }
         }
 
         protected override void UpdateState()
         {
-            if (State is ITabletReport report)
+            if (State is ITabletReport report && PenIsInRange())
             {
                 report.Position = Filter(calcTarget) / MillimeterScale;
                 report.Pressure = this.pressure;
                 State = report;
-            }
 
-            if (PenIsInRange() || State is not ITabletReport)
-            {
                 OnEmit();
             }
         }

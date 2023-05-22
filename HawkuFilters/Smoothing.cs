@@ -37,20 +37,21 @@ namespace TabletDriverFilters.Hawku
         {
             if (State is ITabletReport report)
                 this.targetPos = new Vector3(report.Position, report.Pressure) * mmScale;
+            else
+                OnEmit();
         }
 
         protected override void UpdateState()
         {
-            if (State is ITabletReport report)
+            if (State is ITabletReport report && PenIsInRange())
             {
                 var newPoint = Filter(this.targetPos) / mmScale;
                 report.Position = new Vector2(newPoint.X, newPoint.Y);
                 report.Pressure = (uint)newPoint.Z;
                 State = report;
-            }
 
-            if (PenIsInRange() || State is not ITabletReport)
                 OnEmit();
+            }
         }
 
         public Vector3 Filter(Vector3 point)
