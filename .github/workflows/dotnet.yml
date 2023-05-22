@@ -24,10 +24,10 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: '6.0'
+        dotnet-version: '7.0'
 
     - name: Filters Build
-      run: dotnet build ${{ matrix.Filters }}/${{ matrix.Filters }}.csproj -o ./build
+      run: dotnet build ${{ matrix.Filters }}/${{ matrix.Filters }}.csproj -o ./build -c Release
 
     - name: Upload Filters artifact
       uses: actions/upload-artifact@master

@@ -1,35 +1,28 @@
 using System;
 using System.Numerics;
-using OpenTabletDriver.Plugin.Attributes;
-using OpenTabletDriver.Plugin.Output;
-using OpenTabletDriver.Plugin.Tablet;
+using OpenTabletDriver;
+using OpenTabletDriver.Attributes;
+using OpenTabletDriver.Output;
+using OpenTabletDriver.Tablet;
 
 namespace TabletDriverFilters
 {
-    public abstract class MillimeterPositionedPipelineElement : IPositionedPipelineElement<IDeviceReport>
+    public abstract class MillimeterPositionedPipelineElement : IDevicePipelineElement
     {
         protected Vector2 MillimeterScale;
 
-        [TabletReference]
-        public TabletReference TabletReference { set => HandleTabletReferenceInternal(value); }
         public abstract PipelinePosition Position { get; }
         public abstract event Action<IDeviceReport> Emit;
         public abstract void Consume(IDeviceReport value);
 
-        private void HandleTabletReferenceInternal(TabletReference tabletReference)
+        protected MillimeterPositionedPipelineElement(InputDevice inputDevice)
         {
-            var digitizer = tabletReference.Properties.Specifications.Digitizer;
+            var digitizer = inputDevice.Configuration.Specifications.Digitizer;
             MillimeterScale = new Vector2
             {
                 X = digitizer.Width / digitizer.MaxX,
                 Y = digitizer.Height / digitizer.MaxY
             };
-            HandleTabletReference(tabletReference);
-        }
-
-        protected virtual void HandleTabletReference(TabletReference tabletReference)
-        {
-            // Override when needed
         }
     }
 }

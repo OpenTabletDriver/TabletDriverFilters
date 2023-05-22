@@ -1,11 +1,12 @@
 <Project>
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(MSBuildThisFileDirectory)/.modules/OpenTabletDriver/OpenTabletDriver.Plugin/OpenTabletDriver.Plugin.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)/.modules/OpenTabletDriver/OpenTabletDriver/OpenTabletDriver.csproj" />
     <Compile Include="$(MSBuildThisFileDirectory)/Common/*.cs" />
   </ItemGroup>
 

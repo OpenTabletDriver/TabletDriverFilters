@@ -1,8 +1,10 @@
 using System;
+using System.ComponentModel;
 using System.Numerics;
-using OpenTabletDriver.Plugin.Attributes;
-using OpenTabletDriver.Plugin.Output;
-using OpenTabletDriver.Plugin.Tablet;
+using OpenTabletDriver;
+using OpenTabletDriver.Attributes;
+using OpenTabletDriver.Output;
+using OpenTabletDriver.Tablet;
 
 namespace TabletDriverFilters.Devocub
 {
@@ -72,38 +74,38 @@ namespace TabletDriverFilters.Devocub
 
         public override PipelinePosition Position => PipelinePosition.PreTransform;
 
-        [SliderProperty("Latency", 0f, 1000f, 2f), DefaultPropertyValue(2f), ToolTip(LATENCY_TOOLTIP)]
+        [RangeSetting("Latency", 0f, 1000f, 2f), DefaultValue(2f), ToolTip(LATENCY_TOOLTIP)]
         public float Latency
         {
             set => this.latency = Math.Clamp(value, 0, 1000);
             get => this.latency;
         }
 
-        [Property("Antichatter Strength"), DefaultPropertyValue(3f), ToolTip(ANTICHATTER_TOOLTIP)]
+        [Setting("Antichatter Strength"), DefaultValue(3f), ToolTip(ANTICHATTER_TOOLTIP)]
         public float AntichatterStrength { set; get; }
 
-        [Property("Antichatter Multiplier"), DefaultPropertyValue(1f), ToolTip(ANTICHATTER_TOOLTIP)]
+        [Setting("Antichatter Multiplier"), DefaultValue(1f), ToolTip(ANTICHATTER_TOOLTIP)]
         public float AntichatterMultiplier { set; get; }
 
-        [Property("Antichatter Offset X"), ToolTip(ANTICHATTER_TOOLTIP)]
+        [Setting("Antichatter Offset X"), ToolTip(ANTICHATTER_TOOLTIP)]
         public float AntichatterOffsetX { set; get; }
 
-        [Property("Antichatter Offset Y"), DefaultPropertyValue(1f), ToolTip(ANTICHATTER_TOOLTIP)]
+        [Setting("Antichatter Offset Y"), DefaultValue(1f), ToolTip(ANTICHATTER_TOOLTIP)]
         public float AntichatterOffsetY { set; get; }
 
-        [BooleanProperty("Prediction", ""), ToolTip(PREDICTION_TOOLTIP)]
+        [Setting("Prediction"), ToolTip(PREDICTION_TOOLTIP)]
         public bool PredictionEnabled { set; get; }
 
-        [Property("Prediction Strength"), DefaultPropertyValue(1.1f), ToolTip(PREDICTION_TOOLTIP)]
+        [Setting("Prediction Strength"), DefaultValue(1.1f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionStrength { set; get; }
 
-        [Property("Prediction Sharpness"), DefaultPropertyValue(1f), ToolTip(PREDICTION_TOOLTIP)]
+        [Setting("Prediction Sharpness"), DefaultValue(1f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionSharpness { set; get; }
 
-        [Property("Prediction Offset X"), DefaultPropertyValue(3f), ToolTip(PREDICTION_TOOLTIP)]
+        [Setting("Prediction Offset X"), DefaultValue(3f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionOffsetX { set; get; }
 
-        [Property("Prediction Offset Y"), DefaultPropertyValue(0.3f), ToolTip(PREDICTION_TOOLTIP)]
+        [Setting("Prediction Offset Y"), DefaultValue(0.3f), ToolTip(PREDICTION_TOOLTIP)]
         public float PredictionOffsetY { set; get; }
 
         private const float THRESHOLD = 0.9f;
@@ -114,6 +116,11 @@ namespace TabletDriverFilters.Devocub
         private Vector2 position;
         private uint pressure;
         private Vector2 prevTargetPos, targetPos, calcTarget;
+
+        public Antichatter(InputDevice inputDevice, ITimer scheduler, ISettingsProvider settingsProvider) : base(inputDevice, scheduler)
+        {
+            settingsProvider.Inject(this);
+        }
 
         protected override void ConsumeState()
         {
